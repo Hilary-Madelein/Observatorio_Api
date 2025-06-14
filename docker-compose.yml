@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: db_observatorio
+      POSTGRES_USER: software_observatorio
+      POSTGRES_PASSWORD: software_observatorio
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./observatorio_api
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: db_observatorio
+      DB_USER: software_observatorio
+      DB_PASSWORD: software_observatorio
+      COSMOS_ENDPOINT: https://datos-cosmos.documents.azure.com:443/ 
+      COSMOS_KEY: qiQcJSvCarkoxOemEpqvzZeA3xk2AoJIaHOSzuR0IcfsZxvAllc4BDoPsid5p1EpSeeFupt9JAPTACDbUyxgAw==
+      COSMOS_DB: PUEAR
+      TTN_SERVER: mqtt://nam1.cloud.thethings.network:1883
+      TTN_USERNAME: puar-unl-esp32@ttn
+      TTN_PASSWORD: NNSXS.FGSQU3PH2K2E32I5U5QDUFKURE4OB42PWDP6N7A.GBTQGXU4TRE3ELIOBWTBLGXDOFQPFIN5UH6CVDHU27Q2E4XMHO3Q
+      TTN_TOPIC_TEMPLATE: v3/puar-unl-esp32@ttn/devices/{id}/up
+      KEY_SQ: OBSERVATORIO-IOT-MQTT
+      KEY: OBSERVATORIO-IOT
+    depends_on:
+      - db
+    volumes:
+      - backend_data:/usr/src/app
+    ports:
+      - "3006:3006"
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+  backend_data:
+
+networks:
+  app-network:
+    driver: bridge
