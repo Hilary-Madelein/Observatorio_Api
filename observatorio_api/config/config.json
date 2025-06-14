@@ -1,9 +1,9 @@
 {
   "development": {
-    "username": "software_observatorio",
-    "password": "software_observatorio",
+    "username": "monitor_admin",
+    "password": "software_observatorio1",
     "database": "db_observatorio",
-    "host": "db",
+    "host": "observatorio-hidro.database.windows.net",
     "dialect": "postgres",
     "timezone": "+00:00",
     "dialectOptions": {
