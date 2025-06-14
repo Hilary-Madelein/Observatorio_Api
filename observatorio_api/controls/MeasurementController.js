@@ -63,6 +63,13 @@ function calcularFechas(escalaDeTiempo, mes, anio, fechaInicio, fechaFin, ultima
     return { fechaInicio: inicio, fechaFin: fin };
 }
 
+const formatName = (name) => {
+    if (name === 'PRESION') {
+        return 'Presión';
+    }
+    return name.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+};
+
 
 class MeasurementController {
 
@@ -160,7 +167,7 @@ class MeasurementController {
                 JOIN quantity q ON m.id_quantity = q.id
                 JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
                 JOIN station st ON m.id_station = st.id
-                WHERE m.status = true AND q.status = true
+                WHERE m.status = true AND q.status = true AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
                 ORDER BY p.name, m.local_date DESC;
             `);
 
@@ -168,7 +175,7 @@ class MeasurementController {
             results.forEach(row => {
                 if (!agrupadas[row.tipo_medida]) {
                     agrupadas[row.tipo_medida] = {
-                        tipo_medida: row.tipo_medida,
+                        tipo_medida: formatName(row.tipo_medida),
                         valor: parseFloat(row.valor),
                         unidad: row.unidad,
                         estacion: row.estacion
@@ -211,6 +218,7 @@ class MeasurementController {
                 WHERE m.status = true
                   AND q.status = true
                   AND st.external_id = :externalId
+                  AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
                 ORDER BY p.name, m.local_date DESC;
             `, {
                 replacements: { externalId },
@@ -218,12 +226,12 @@ class MeasurementController {
             });
     
             const salida = results.map(row => ({
-                tipo_medida:    row.tipo_medida,
+                tipo_medida: formatName(row.tipo_medida),
                 valor:          parseFloat(row.valor),
                 unidad:         row.unidad,
                 fecha_medicion: row.fecha_medicion
             }));
-    
+
             return res.status(200).json({
                 msg: 'Últimas mediciones de la estación',
                 code: 200,
@@ -270,6 +278,7 @@ class MeasurementController {
                 AND m.status = true
                 AND q.status = true
                 AND (:estacion IS NULL OR st.external_id = :estacion)
+                AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
               ORDER BY m.local_date;
             `;
 
@@ -283,7 +292,7 @@ class MeasurementController {
                 const info = rows.map(r => ({
                     hora: r.periodo.toISOString(),
                     estacion: r.estacion_nombre,
-                    tipo_medida: r.tipo_medida,
+                    tipo_medida: formatName(r.tipo_medida),
                     valor: parseFloat(r.valor),
                     icon: r.variable_icon,
                     unidad: r.unidad
@@ -311,6 +320,7 @@ class MeasurementController {
               AND m.status = true
               AND q.status = true
               AND (:estacion IS NULL OR st.external_id = :estacion)
+              AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
             GROUP BY periodo, p.name, p.icon, p.unit_measure, st.name
             ORDER BY periodo, p.name;
           `;
@@ -346,7 +356,7 @@ class MeasurementController {
                 if (r.suma != null) ops.SUMA = parseFloat(r.suma);
                 ops.icon = r.variable_icon;
                 ops.unidad = r.unidad;
-                seriesMap[key].medidas[r.tipo_medida] = ops;
+                seriesMap[key].medidas[formatName(r.tipo_medida)] = ops;
             });
 
             return res.json({

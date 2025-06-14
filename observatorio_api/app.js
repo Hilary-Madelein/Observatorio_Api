@@ -19,7 +19,7 @@ const options = { timezone: 'America/Guayaquil' };
 
 const io = socket.init(server);
 
-server.listen(3006, () => console.log('API corriendo en 3006'));
+server.listen(5006, () => console.log('API corriendo en 3006'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

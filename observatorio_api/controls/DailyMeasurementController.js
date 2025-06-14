@@ -3,6 +3,14 @@
 const { v4: uuidv4 } = require('uuid');
 const models = require('../models');
 
+const formatName = (name) => {
+  if (name === 'PRESION') {
+      return 'Presión';
+  }
+  return name.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+};
+
+
 class DailyMeasurementController {
   async getMedicionesHistoricas(req, res) {
     const { rango, estacion, fechaInicio, fechaFin } = req.query;
@@ -33,6 +41,7 @@ class DailyMeasurementController {
           WHERE dm.status = true
             AND p.status  = true
             AND (st.external_id = :estacion OR :estacion IS NULL)
+            AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
           GROUP BY periodo, p.name, p.icon, p.unit_measure, st.name
           ORDER BY periodo, p.name;
           `,
@@ -72,6 +81,7 @@ class DailyMeasurementController {
             AND dm.status = true
             AND p.status  = true
             AND (st.external_id = :estacion OR :estacion IS NULL)
+            AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
           GROUP BY periodo, p.name, p.icon, p.unit_measure, st.name
           ORDER BY periodo, p.name;
           `,
@@ -116,10 +126,12 @@ class DailyMeasurementController {
         ops.icon   = r.variable_icon;
         ops.unidad = r.unidad;
   
-        seriesMap[key].medidas[r.tipo_medida] = ops;
+        seriesMap[key].medidas[formatName(r.tipo_medida)] = ops;
       });
   
       const info = Object.values(seriesMap);
+
+      console.log('salida', info);
   
       return res.status(200).json({
         msg:  'Series históricas de mediciones agregadas',

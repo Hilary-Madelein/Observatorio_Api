@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Op } = require("sequelize");
 const models = require('../models');
 
-const VALOR_UMBRAL = 1e6;
+const VALOR_UMBRAL = 1000;
 
 const medidaMapeo = {
   EMA: {
