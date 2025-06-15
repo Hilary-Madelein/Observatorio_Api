@@ -1,18 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:14-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: db_observatorio
-      POSTGRES_USER: software_observatorio
-      POSTGRES_PASSWORD: software_observatorio
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./db:/docker-entrypoint-initdb.d
-    networks:
-      - app-network
 
   backend:
     build:
@@ -35,8 +23,6 @@ services:
       TTN_TOPIC_TEMPLATE: v3/puar-unl-esp32@ttn/devices/{id}/up
       KEY_SQ: OBSERVATORIO-IOT-MQTT
       KEY: OBSERVATORIO-IOT
-    depends_on:
-      - db
     volumes:
       - backend_data:/usr/src/app
     ports:
@@ -45,7 +31,6 @@ services:
       - app-network
 
 volumes:
-  db_data:
   backend_data:
 
 networks:
