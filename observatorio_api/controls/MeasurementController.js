@@ -12,56 +12,60 @@ const DailyMeasurement = models.daily_measurement;
 const TypeOperation = models.type_operation;
 
 
-function calcularFechas(escalaDeTiempo, mes, anio, fechaInicio, fechaFin, ultimaFecha) {
-
-    function toLocalISOStringNoTZ(date) {
-        const tzOffsetMs = date.getTimezoneOffset() * 60000;
-        const local = new Date(date.getTime() - tzOffsetMs);
-        return local.toISOString().slice(0, -1);
-    }
-
-    let inicio, fin;
-
-    if (escalaDeTiempo) {
-        switch (escalaDeTiempo) {
-            case '15min': {
-                const start = new Date(ultimaFecha.getTime() - 15 * 60000);
-                inicio = toLocalISOStringNoTZ(start);
-                fin = toLocalISOStringNoTZ(ultimaFecha);
-                break;
-            }
-            case '30min': {
-                const start = new Date(ultimaFecha.getTime() - 30 * 60000);
-                inicio = toLocalISOStringNoTZ(start);
-                fin = toLocalISOStringNoTZ(ultimaFecha);
-                break;
-            }
-            case 'hora': {
-                const start = new Date(ultimaFecha.getTime() - 60 * 60000);
-                inicio = toLocalISOStringNoTZ(start);
-                fin = toLocalISOStringNoTZ(ultimaFecha);
-                break;
-            }
-            case 'diaria': {
-                const y = ultimaFecha.getFullYear();
-                const m = ultimaFecha.getMonth();
-                const d = ultimaFecha.getDate();
-                const start = new Date(y, m, d, 0, 0, 0);
-                const end = new Date(y, m, d, 23, 59, 59);
-                inicio = toLocalISOStringNoTZ(start);
-                fin = toLocalISOStringNoTZ(end);
-                break;
-            }
-            default:
-                throw new Error('Escala de tiempo inválida.');
-        }
-
-    } else {
+/**
+ * Devuelve los rangos de fecha en formato ISO UTC (con Z),
+ * para que PostgreSQL los reciba correctamente.
+ */
+function calcularFechas(escalaDeTiempo, ultimaFecha) {
+    if (!escalaDeTiempo || !ultimaFecha) {
         throw new Error('Parámetros de fecha insuficientes.');
     }
 
-    return { fechaInicio: inicio, fechaFin: fin };
+    let inicioDate, finDate;
+    switch (escalaDeTiempo) {
+        case '15min':
+            inicioDate = new Date(ultimaFecha.getTime() - 15 * 60000);
+            finDate = ultimaFecha;
+            break;
+        case '30min':
+            inicioDate = new Date(ultimaFecha.getTime() - 30 * 60000);
+            finDate = ultimaFecha;
+            break;
+        case 'hora':
+            inicioDate = new Date(ultimaFecha.getTime() - 60 * 60000);
+            finDate = ultimaFecha;
+            break;
+        case 'diaria': {
+            const y = ultimaFecha.getFullYear();
+            const m = ultimaFecha.getMonth();
+            const d = ultimaFecha.getDate();
+            inicioDate = new Date(y, m, d, 0, 0, 0);
+            finDate = new Date(y, m, d, 23, 59, 59);
+            break;
+        }
+        default:
+            throw new Error('Escala de tiempo inválida.');
+    }
+
+    const pad2 = n => String(n).padStart(2, '0');
+    function toLocalISO(d) {
+        return [
+            d.getFullYear(),
+            pad2(d.getMonth() + 1),
+            pad2(d.getDate())
+        ].join('-') + 'T' + [
+            pad2(d.getHours()),
+            pad2(d.getMinutes()),
+            pad2(d.getSeconds())
+        ].join(':');
+    }
+
+    return {
+        fechaInicio: toLocalISO(inicioDate),  
+        fechaFin: toLocalISO(finDate)   
+    };
 }
+
 
 const formatName = (name) => {
     if (name === 'PRESION') {
@@ -203,7 +207,7 @@ class MeasurementController {
                 code: 400
             });
         }
-    
+
         try {
             const results = await models.sequelize.query(`
                 SELECT DISTINCT ON (p.name)
@@ -224,11 +228,11 @@ class MeasurementController {
                 replacements: { externalId },
                 type: models.sequelize.QueryTypes.SELECT
             });
-    
+
             const salida = results.map(row => ({
                 tipo_medida: formatName(row.tipo_medida),
-                valor:          parseFloat(row.valor),
-                unidad:         row.unidad,
+                valor: parseFloat(row.valor),
+                unidad: row.unidad,
                 fecha_medicion: row.fecha_medicion
             }));
 
@@ -245,7 +249,7 @@ class MeasurementController {
             });
         }
     }
-   
+
     /**
    * Retorna series de estadísticas (PROMEDIO, MAX, MIN, SUMA) por fenómeno
    * agrupadas en intervalos de tiempo según 'rango' (minuto u hora).
@@ -259,28 +263,36 @@ class MeasurementController {
         }
 
         try {
-            const { fechaInicio, fechaFin } = calcularFechas(rango, null, null, null, null, ahora);
+            const ahora = new Date();
+            const { fechaInicio, fechaFin } = calcularFechas(rango, ahora);
+
+            console.log("Fechas calculadas:", {
+                fechaInicio,
+                fechaFin
+            });
+
 
             if (['15min', '30min', 'hora'].includes(rango)) {
                 const sql = `
-              SELECT
-                m.local_date    AS periodo,
-                p.name          AS tipo_medida,
-                p.icon          AS variable_icon,
-                p.unit_measure  AS unidad,
-                st.name         AS estacion_nombre,
-                q.quantity      AS valor
-              FROM measurement m
-              JOIN quantity q        ON m.id_quantity        = q.id
-              JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
-              JOIN station st        ON m.id_station         = st.id
-              WHERE m.local_date BETWEEN :fechaInicio AND :fechaFin
-                AND m.status = true
-                AND q.status = true
-                AND (:estacion IS NULL OR st.external_id = :estacion)
-                AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
-              ORDER BY m.local_date;
-            `;
+    SELECT
+      m.local_date    AS periodo,
+      p.name          AS tipo_medida,
+      p.icon          AS variable_icon,
+      p.unit_measure  AS unidad,
+      st.name         AS estacion_nombre,
+      q.quantity      AS valor
+    FROM measurement m
+    JOIN quantity q        ON m.id_quantity        = q.id
+    JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
+    JOIN station st        ON m.id_station         = st.id
+    WHERE (m.local_date AT TIME ZONE 'UTC')
+      BETWEEN (:fechaInicio)::timestamp AND (:fechaFin)::timestamp
+      AND m.status = true
+      AND q.status = true
+      AND (:estacion IS NULL OR st.external_id = :estacion)
+      AND p.name NOT IN ('CARGA_H','DISTANCIA_HS')
+    ORDER BY m.local_date;
+  `;
 
                 let rows = await models.sequelize.query(sql, {
                     replacements: { fechaInicio, fechaFin, estacion: estacion || null },
