@@ -12,6 +12,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      COSMOS_ENDPOINT: ${{ secrets.COSMOS_ENDPOINT }}
+      COSMOS_KEY: ${{ secrets.COSMOS_KEY }}
+      COSMOS_DB: ${{ secrets.COSMOS_DB }}
+      TTN_USERNAME: ${{ secrets.TTN_USERNAME }}
+      TTN_PASSWORD: ${{ secrets.TTN_PASSWORD }}
+      TTN_SERVER: ${{ secrets.TTN_SERVER }}
+      TTN_TOPIC_TEMPLATE: ${{ secrets.TTN_TOPIC_TEMPLATE }}
     permissions:
       contents: read #This is required for actions/checkout
 
