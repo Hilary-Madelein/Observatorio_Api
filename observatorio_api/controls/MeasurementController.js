@@ -266,11 +266,6 @@ class MeasurementController {
             const ahora = new Date();
             const { fechaInicio, fechaFin } = calcularFechas(rango, ahora);
 
-            console.log("Fechas calculadas:", {
-                fechaInicio,
-                fechaFin
-            });
-
 
             if (['15min', '30min', 'hora'].includes(rango)) {
                 const sql = `
