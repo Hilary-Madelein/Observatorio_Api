@@ -21,11 +21,11 @@ services:
     restart: always
     environment:
       NODE_ENV: development
-      DB_HOST: db
+      DB_HOST: observatorioserver.postgres.database.azure.com
       DB_PORT: 5432
-      DB_NAME: db_observatorio
-      DB_USER: software_observatorio
-      DB_PASSWORD: software_observatorio
+      DB_NAME: postgres
+      DB_USER: observatorioadmin
+      DB_PASSWORD: Monitorpuear2
       COSMOS_ENDPOINT: https://datos-cosmos.documents.azure.com:443/ 
       COSMOS_KEY: qiQcJSvCarkoxOemEpqvzZeA3xk2AoJIaHOSzuR0IcfsZxvAllc4BDoPsid5p1EpSeeFupt9JAPTACDbUyxgAw==
       COSMOS_DB: PUEAR
@@ -41,18 +41,6 @@ services:
       - backend_data:/usr/src/app
     ports:
       - "3006:3006"
-    networks:
-      - app-network
-
-  frontend:
-    build:
-      context: ./observatorio_web
-      dockerfile: Dockerfile
-    restart: always
-    depends_on:
-      - backend
-    ports:
-      - "3000:3000"
     networks:
       - app-network
 
