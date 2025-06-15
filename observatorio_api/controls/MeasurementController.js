@@ -38,7 +38,6 @@ function calcularFechas(escalaDeTiempo) {
     case 'diaria': {
       const y = ahoraQ.getFullYear(), m = ahoraQ.getMonth(), d = ahoraQ.getDate();
       inicioQ = new Date(y, m, d, 0, 0, 0);
-      // y finQ = new Date(y,m,d,23,59,59) si lo necesitas
       break;
     }
     default:
@@ -46,7 +45,7 @@ function calcularFechas(escalaDeTiempo) {
   }
 
   return {
-    fechaInicio: inicioQ.toISOString(),  // ISO en UTC, pero calculado sobre Quito
+    fechaInicio: inicioQ.toISOString(),
     fechaFin:    ahoraQ.toISOString()
   };
 }
@@ -241,125 +240,128 @@ class MeasurementController {
    */
     async getMedicionesPorTiempo(req, res) {
         const { rango, estacion } = req.query;
-        const ahora = new Date();
-
-        if (!rango || !['15min', '30min', 'hora', 'diaria'].includes(rango)) {
-            return res.status(400).json({ msg: 'Rango inválido', code: 400 });
+        if (!rango || !['15min','30min','hora','diaria'].includes(rango)) {
+          return res.status(400).json({ msg: 'Rango inválido', code: 400 });
         }
-
+      
         try {
-            const ahora = new Date();
-            const { fechaInicio, fechaFin } = calcularFechas(rango, ahora);
-
-
-            if (['15min', '30min', 'hora'].includes(rango)) {
-                const sql = `
-    SELECT
-      m.local_date    AS periodo,
-      p.name          AS tipo_medida,
-      p.icon          AS variable_icon,
-      p.unit_measure  AS unidad,
-      st.name         AS estacion_nombre,
-      q.quantity      AS valor
-    FROM measurement m
-    JOIN quantity q        ON m.id_quantity        = q.id
-    JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
-    JOIN station st        ON m.id_station         = st.id
-    WHERE (m.local_date AT TIME ZONE 'UTC')
-      BETWEEN (:fechaInicio)::timestamp AND (:fechaFin)::timestamp
-      AND m.status = true
-      AND q.status = true
-      AND (:estacion IS NULL OR st.external_id = :estacion)
-      AND p.name NOT IN ('CARGA_H','DISTANCIA_HS')
-    ORDER BY m.local_date;
-  `;
-
-                let rows = await models.sequelize.query(sql, {
-                    replacements: { fechaInicio, fechaFin, estacion: estacion || null },
-                    type: models.sequelize.QueryTypes.SELECT
-                });
-
-                rows = rows.filter(r => r.valor != null && r.valor <= 1000);
-
-                const info = rows.map(r => ({
-                    hora: r.periodo.toISOString(),
-                    estacion: r.estacion_nombre,
-                    tipo_medida: formatName(r.tipo_medida),
-                    valor: parseFloat(r.valor),
-                    icon: r.variable_icon,
-                    unidad: r.unidad
-                }));
-
-                return res.json({ msg: `Datos crudos ${rango}`, code: 200, info });
-            }
-
-            const sqlAgg = `
-            SELECT
-              date_trunc('hour', m.local_date) AS periodo,
-              p.name                            AS tipo_medida,
-              p.icon                            AS variable_icon,
-              p.unit_measure                    AS unidad,
-              st.name                           AS estacion_nombre,
-              AVG(q.quantity) FILTER (WHERE 'PROMEDIO' = ANY(p.operations)) AS promedio,
-              MAX(q.quantity)   FILTER (WHERE 'MAX'      = ANY(p.operations)) AS maximo,
-              MIN(q.quantity)   FILTER (WHERE 'MIN'      = ANY(p.operations)) AS minimo,
-              SUM(q.quantity)   FILTER (WHERE 'SUMA'     = ANY(p.operations)) AS suma
-            FROM measurement m
-            JOIN quantity q        ON m.id_quantity        = q.id
-            JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
-            JOIN station st        ON m.id_station         = st.id
-            WHERE m.local_date BETWEEN :fechaInicio AND :fechaFin
-              AND m.status = true
-              AND q.status = true
-              AND (:estacion IS NULL OR st.external_id = :estacion)
-              AND p.name NOT IN ('CARGA_H', 'DISTANCIA_HS')
-            GROUP BY periodo, p.name, p.icon, p.unit_measure, st.name
-            ORDER BY periodo, p.name;
-          `;
-
-            let agg = await models.sequelize.query(sqlAgg, {
-                replacements: { fechaInicio, fechaFin, estacion: estacion || null },
-                type: models.sequelize.QueryTypes.SELECT
+          const ahora = new Date();
+          const { fechaInicio, fechaFin } = calcularFechas(rango, ahora);
+      
+          // 1) Datos crudos para 15min, 30min y hora
+          if (['15min','30min','hora'].includes(rango)) {
+            const sql = `
+              SELECT
+                m.local_date    AS periodo,
+                p.name          AS tipo_medida,
+                p.icon          AS variable_icon,
+                p.unit_measure  AS unidad,
+                st.name         AS estacion_nombre,
+                q.quantity      AS valor
+              FROM measurement m
+              JOIN quantity q        ON m.id_quantity        = q.id
+              JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
+              JOIN station st        ON m.id_station         = st.id
+              WHERE (m.local_date AT TIME ZONE 'UTC')
+                BETWEEN (:fechaInicio)::timestamp AND (:fechaFin)::timestamp
+                AND m.status = true
+                AND q.status = true
+                AND (:estacion IS NULL OR st.external_id = :estacion)
+                AND p.name NOT IN ('CARGA_H','DISTANCIA_HS')
+              ORDER BY m.local_date;
+            `;
+      
+            let rows = await models.sequelize.query(sql, {
+              replacements: { fechaInicio, fechaFin, estacion: estacion || null },
+              type: models.sequelize.QueryTypes.SELECT
             });
-
-            agg = agg.filter(r => {
-                if (r.promedio != null && r.promedio > 1000) return false;
-                if (r.maximo != null && r.maximo > 1000) return false;
-                if (r.minimo != null && r.minimo > 1000) return false;
-                if (r.suma != null && r.suma > 1000) return false;
-                return true;
+      
+            rows = rows.filter(r => r.valor != null && r.valor <= 1000);
+      
+            const info = rows.map(r => ({
+              hora:        r.periodo.toISOString(),
+              estacion:    r.estacion_nombre,
+              tipo_medida: formatName(r.tipo_medida),
+              valor:       parseFloat(r.valor),
+              icon:        r.variable_icon,
+              unidad:      r.unidad
+            }));
+      
+            return res.json({ msg: `Datos crudos ${rango}`, code: 200, info });
+          }
+      
+          if (rango === 'diaria') {
+            const sql20 = `
+              SELECT
+                (
+                  date_trunc('hour', m.local_date)
+                  + floor(date_part('minute', m.local_date) / 20) * interval '20 minutes'
+                ) AS periodo,
+                p.name          AS tipo_medida,
+                p.icon          AS variable_icon,
+                p.unit_measure  AS unidad,
+                st.name         AS estacion_nombre,
+                AVG(q.quantity) FILTER (WHERE 'PROMEDIO' = ANY(p.operations)) AS promedio,
+                MAX(q.quantity)   FILTER (WHERE 'MAX'      = ANY(p.operations)) AS maximo,
+                MIN(q.quantity)   FILTER (WHERE 'MIN'      = ANY(p.operations)) AS minimo,
+                SUM(q.quantity)   FILTER (WHERE 'SUMA'     = ANY(p.operations)) AS suma
+              FROM measurement m
+              JOIN quantity q        ON m.id_quantity        = q.id
+              JOIN phenomenon_type p ON m.id_phenomenon_type = p.id
+              JOIN station st        ON m.id_station         = st.id
+              WHERE m.local_date BETWEEN :fechaInicio AND :fechaFin
+                AND m.status = true
+                AND q.status = true
+                AND (:estacion IS NULL OR st.external_id = :estacion)
+                AND p.name NOT IN ('CARGA_H','DISTANCIA_HS')
+              GROUP BY periodo, p.name, p.icon, p.unit_measure, st.name
+              ORDER BY periodo, p.name;
+            `;
+      
+            let agg20 = await models.sequelize.query(sql20, {
+              replacements: { fechaInicio, fechaFin, estacion: estacion || null },
+              type: models.sequelize.QueryTypes.SELECT
             });
-
-
+      
+            agg20 = agg20.filter(r => {
+              return (
+                (r.promedio == null || r.promedio <= 1000) &&
+                (r.maximo  == null || r.maximo  <= 1000) &&
+                (r.minimo  == null || r.minimo  <= 1000) &&
+                (r.suma    == null || r.suma    <= 1000)
+              );
+            });
+      
             const seriesMap = {};
-            agg.forEach(r => {
-                const key = new Date(r.periodo).toISOString();
-                if (!seriesMap[key]) {
-                    seriesMap[key] = {
-                        hora: key,
-                        estacion: r.estacion_nombre,
-                        medidas: {}
-                    };
-                }
-                const ops = {};
-                if (r.promedio != null) ops.PROMEDIO = Math.round(r.promedio * 100) / 100;
-                if (r.maximo != null) ops.MAX = parseFloat(r.maximo);
-                if (r.minimo != null) ops.MIN = parseFloat(r.minimo);
-                if (r.suma != null) ops.SUMA = parseFloat(r.suma);
-                ops.icon = r.variable_icon;
-                ops.unidad = r.unidad;
-                seriesMap[key].medidas[formatName(r.tipo_medida)] = ops;
+            agg20.forEach(r => {
+              const key = r.periodo.toISOString();
+              if (!seriesMap[key]) {
+                seriesMap[key] = {
+                  hora:    key,
+                  estacion: r.estacion_nombre,
+                  medidas: {}
+                };
+              }
+              const ops = {};
+              if (r.promedio != null) ops.PROMEDIO = Math.round(r.promedio * 100) / 100;
+              if (r.maximo  != null) ops.MAX      = parseFloat(r.maximo);
+              if (r.minimo  != null) ops.MIN      = parseFloat(r.minimo);
+              if (r.suma    != null) ops.SUMA     = parseFloat(r.suma);
+              ops.icon   = r.variable_icon;
+              ops.unidad = r.unidad;
+              seriesMap[key].medidas[ formatName(r.tipo_medida) ] = ops;
             });
-
+      
             return res.json({
-                msg: 'Series horarias agregadas',
-                code: 200,
-                info: Object.values(seriesMap)
+              msg:  'Series 20 min para diaria agregadas',
+              code: 200,
+              info: Object.values(seriesMap)
             });
-
+          }
+      
         } catch (e) {
-            console.error('Error en getMedicionesPorTiempo:', e);
-            return res.status(500).json({ msg: 'Error', code: 500 });
+          console.error('Error en getMedicionesPorTiempo:', e);
+          return res.status(500).json({ msg: 'Error', code: 500 });
         }
     }
 
