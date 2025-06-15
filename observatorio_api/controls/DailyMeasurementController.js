@@ -102,7 +102,7 @@ class DailyMeasurementController {
   
         if (isTemp) {
           const allHigh = ['promedio','maximo','minimo'].every(key =>
-            r[key] != null && r[key] > 80
+            r[key] != null && r[key] > 50
           );
           return !allHigh;
         } else {
