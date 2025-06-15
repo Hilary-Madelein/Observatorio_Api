@@ -97,12 +97,25 @@ class DailyMeasurementController {
       }
   
       rows = rows.filter(r => {
-        if (r.promedio != null && r.promedio > 1000) return false;
-        if (r.maximo  != null && r.maximo  > 1000) return false;
-        if (r.minimo  != null && r.minimo  > 1000) return false;
-        if (r.suma    != null && r.suma    > 1000) return false;
+        const name = r.tipo_medida.toLowerCase();
+        const isTemp = name.includes('temperatura') || name.includes('temp');
+      
+        if (isTemp) {
+          if (r.promedio != null && r.promedio > 50) return false;
+          if (r.maximo  != null && r.maximo  > 50) return false;
+          if (r.minimo  != null && r.minimo  > 50) return false;
+          if (r.suma    != null && r.suma    > 50) return false;
+        }
+        else {
+          if (r.promedio != null && r.promedio > 1000) return false;
+          if (r.maximo  != null && r.maximo  > 1000) return false;
+          if (r.minimo  != null && r.minimo  > 1000) return false;
+          if (r.suma    != null && r.suma    > 1000) return false;
+        }
+      
         return true;
       });
+      
   
       const seriesMap = {};
       rows.forEach(r => {
