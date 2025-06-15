@@ -6,7 +6,8 @@ module.exports = {
     io = new Server(server, {
       path: '/socket.io',
       cors: {
-        origin: "https://observatoriohidrometeorologico-hfdtdkage8h9azdz.eastus-01.azurewebsites.net",
+        origin:"*",
+        //origin: "https://observatoriohidrometeorologico-hfdtdkage8h9azdz.eastus-01.azurewebsites.net",
         methods: ["GET", "POST"],
         credentials: true
       }
