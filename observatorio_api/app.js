@@ -9,17 +9,12 @@ const http = require('http');
 const { Server } = require('socket.io');
 var createError = require('http-errors');
 var app = express();
-const server = http.createServer(app);
 const cron = require('node-cron');
 const MeasurementController = require('./controls/MeasurementController');
 const measurementCtrl = new MeasurementController();
 const socket = require('./routes/socket');
 const expression = '0 0 */2 * *';
 const options = { timezone: 'America/Guayaquil' };
-
-const io = socket.init(server);
-
-server.listen(3006, () => console.log('API corriendo en 3006'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -32,8 +27,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.set('io', io);
 app.use(cors({ origin: '*' }));
 
 
@@ -79,11 +72,6 @@ try {
 
 app.get('/', (req, res) => {
   res.status(200).send('Hello, World!');
-});
-
-io.on('connection', (socket) => {
-  console.log('Cliente conectado:', socket.id);
-  socket.on('disconnect', () => console.log('Cliente desconectado:', socket.id));
 });
 
 // catch 404 and forward to error handler

@@ -12,8 +12,21 @@ var http = require('http');
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || '5006');
+var port = normalizePort(process.env.PORT || '3006');
 app.set('port', port);
+
+var server = http.createServer(app);
+
+var socket = require('../routes/socket');
+var io     = socket.init(server);
+app.set('io', io);
+
+server.listen(port);
+
+io.on('connection', (socket) => {
+  console.log('Cliente conectado:', socket.id);
+  socket.on('disconnect', () => console.log('Cliente desconectado:', socket.id));
+});
 
 /**
  * Create HTTP server.
