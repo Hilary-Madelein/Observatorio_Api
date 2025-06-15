@@ -5,7 +5,7 @@ FLAG="/usr/src/app/.initialized"
 
 if [ ! -f "$FLAG" ]; then
   echo "Primera ejecución: esperando a Postgres..."
-  until nc -z db 5432; do sleep 1; done
+  until nc -z observatorioserver.postgres.database.azure.com 5432; do sleep 1; done
   echo "Postgres listo, arrancando API en segundo plano…"
   npm start &
   APP_PID=$!
