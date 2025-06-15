@@ -51,16 +51,16 @@ class DailyMeasurementController {
           }
         );
   
-      } else if (rango === 'rangoFechas') {
+      } else {
+        // rangoFechas
         if (!fechaInicio || !fechaFin) {
           return res.status(400).json({
             msg: 'Se requiere una fecha de inicio y fin para el rango de fechas',
             code: 400
           });
         }
-  
-        const inicioDate = fechaInicio.slice(0, 10); 
-        const finDate    = fechaFin.slice(0, 10);  
+        const inicioDate = fechaInicio.slice(0, 10);
+        const finDate    = fechaFin.slice(0, 10);
   
         rows = await models.sequelize.query(
           `
@@ -97,29 +97,38 @@ class DailyMeasurementController {
       }
   
       rows = rows.filter(r => {
-        const name = r.tipo_medida.toLowerCase();
+        const name   = r.tipo_medida.toLowerCase();
         const isTemp = name.includes('temperatura') || name.includes('temp');
-      
+  
         if (isTemp) {
-          if (r.promedio != null && r.promedio > 80) return false;
-          if (r.maximo  != null && r.maximo  > 80) return false;
-          if (r.minimo  != null && r.minimo  > 80) return false;
-        }
-        else {
+          const allHigh = ['promedio','maximo','minimo'].every(key =>
+            r[key] != null && r[key] > 80
+          );
+          return !allHigh;
+        } else {
           if (r.promedio != null && r.promedio > 1000) return false;
           if (r.maximo  != null && r.maximo  > 1000) return false;
           if (r.minimo  != null && r.minimo  > 1000) return false;
           if (r.suma    != null && r.suma    > 1000) return false;
+          return true;
         }
-      
-        return true;
+      }).map(r => {
+        const name   = r.tipo_medida.toLowerCase();
+        const isTemp = name.includes('temperatura') || name.includes('temp');
+        if (isTemp) {
+          ['promedio','maximo','minimo','suma'].forEach(key => {
+            if (r[key] != null && r[key] > 80) {
+              r[key] = null;
+            }
+          });
+        }
+        return r;
       });
-      
   
+      // Construir series
       const seriesMap = {};
       rows.forEach(r => {
         const periodoISO = new Date(r.periodo).toISOString();
-  
         const key = `${r.estacion_nombre}__${periodoISO}`;
   
         if (!seriesMap[key]) {
@@ -142,8 +151,6 @@ class DailyMeasurementController {
       });
   
       const info = Object.values(seriesMap);
-
-      console.log('salida', info);
   
       return res.status(200).json({
         msg:  'Series históricas de mediciones agregadas',
@@ -159,6 +166,7 @@ class DailyMeasurementController {
       });
     }
   }
+  
   
   
 }
