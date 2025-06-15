@@ -96,30 +96,28 @@ mqttClient.on('message', async (topic, message) => {
   }
 });
 
-// Ruta de verificación
-router.get('/privado/:external', async function (req, res) {
-  const llave = req.params.external;
-  const envKey = process.env.KEY_SQ;
+(async () => {
+  const endpoint = process.env.COSMOS_ENDPOINT;
+  const key = process.env.COSMOS_KEY;
+  const databaseId = process.env.COSMOS_DB;
 
-  if (llave !== envKey) {
-    return res.status(401).json({ message: 'Llave incorrecta!' });
+  if (!endpoint || !key || !databaseId) {
+    console.warn('CosmosDB no está configurado (faltan variables de entorno). Omite conexión.');
+    return;
   }
+
+  const { CosmosClient } = require('@azure/cosmos');
+  const client = new CosmosClient({ endpoint, key });
 
   try {
-    await sequelize.authenticate();
-    console.log('Conectado a PostgreSQL');
-
-    // Verificar conexión temporal a Azure Cosmos para migración
+    // Intentar leer los contenedores existentes
     const db = client.database(databaseId);
     const { resources: containers } = await db.containers.readAll().fetchAll();
-    console.log(`Conectado a Cosmos DB: ${databaseId}, contenedores encontrados:`, containers.map(c => c.id));
-
-    return res.status(200).send(`Conexión exitosa a PostgreSQL y Cosmos DB (${databaseId})`);
+    console.log(`Conexión exitosa a CosmosDB (${databaseId}). Contenedores: ${containers.map(c => c.id).join(', ')}`);
   } catch (err) {
-    console.error('Error en conexión a PostgreSQL o Cosmos:', err.message);
-    return res.status(500).json({ message: 'Error conectando a bases de datos', error: err.message });
+    console.error('Error conectando a CosmosDB:', err.message);
   }
-});
+})();
 
 module.exports = {
   router,
