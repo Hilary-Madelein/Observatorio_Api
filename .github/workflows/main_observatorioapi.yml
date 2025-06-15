@@ -80,4 +80,5 @@ jobs:
           app-name: 'observatorioapi'
           slot-name: 'Production'
           package: .
+          startup-command: 'npm start --prefix observatorio_api'
           
