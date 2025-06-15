@@ -110,7 +110,6 @@ mqttClient.on('message', async (topic, message) => {
   const client = new CosmosClient({ endpoint, key });
 
   try {
-    // Intentar leer los contenedores existentes
     const db = client.database(databaseId);
     const { resources: containers } = await db.containers.readAll().fetchAll();
     console.log(`Conexión exitosa a CosmosDB (${databaseId}). Contenedores: ${containers.map(c => c.id).join(', ')}`);
