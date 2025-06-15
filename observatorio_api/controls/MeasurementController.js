@@ -16,36 +16,38 @@ const TypeOperation = models.type_operation;
  * Devuelve los rangos de fecha en formato ISO UTC (con Z),
  * para que PostgreSQL los reciba correctamente.
  */
-const moment = require('moment-timezone');
+const OFFSET_Q = 5 * 60 * 60 * 1000; // 5 horas en ms
 
 function calcularFechas(escalaDeTiempo) {
-  const ahora = moment.tz('America/Guayaquil');
-  let inicio;
+  // toma UTC “ahora”
+  const ahoraUTC = Date.now();
+  // convierte a «hora de Quito»
+  const ahoraQ = new Date(ahoraUTC - OFFSET_Q);
 
+  let inicioQ;
   switch (escalaDeTiempo) {
     case '15min':
-      inicio = ahora.clone().subtract(15, 'minutes');
+      inicioQ = new Date(ahoraQ.getTime() - 15 * 60000);
       break;
     case '30min':
-      inicio = ahora.clone().subtract(30, 'minutes');
+      inicioQ = new Date(ahoraQ.getTime() - 30 * 60000);
       break;
     case 'hora':
-      inicio = ahora.clone().subtract(1, 'hour');
+      inicioQ = new Date(ahoraQ.getTime() - 60 * 60000);
       break;
-    case 'diaria':
-      inicio = ahora.clone().startOf('day');
-      fin    = ahora.clone().endOf('day');
-      return {
-        fechaInicio: inicio.toISOString(),
-        fechaFin:    fin.toISOString()
-      };
+    case 'diaria': {
+      const y = ahoraQ.getFullYear(), m = ahoraQ.getMonth(), d = ahoraQ.getDate();
+      inicioQ = new Date(y, m, d, 0, 0, 0);
+      // y finQ = new Date(y,m,d,23,59,59) si lo necesitas
+      break;
+    }
     default:
       throw new Error('Escala inválida');
   }
 
   return {
-    fechaInicio: inicio.toISOString(),
-    fechaFin:    ahora.toISOString()
+    fechaInicio: inicioQ.toISOString(),  // ISO en UTC, pero calculado sobre Quito
+    fechaFin:    ahoraQ.toISOString()
   };
 }
 
