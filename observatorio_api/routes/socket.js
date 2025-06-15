@@ -6,9 +6,8 @@ module.exports = {
     io = new Server(server, {
       path: '/socket.io',
       cors: {
-        origin: "https://zealous-field-0dcd4f60f.6.azurestaticapps.net",
+        origin: "*",
         methods: ["GET", "POST"],
-        credentials: true
       }
     });
     return io;
