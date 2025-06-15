@@ -16,54 +16,37 @@ const TypeOperation = models.type_operation;
  * Devuelve los rangos de fecha en formato ISO UTC (con Z),
  * para que PostgreSQL los reciba correctamente.
  */
-function calcularFechas(escalaDeTiempo, ultimaFecha) {
-    if (!escalaDeTiempo || !ultimaFecha) {
-        throw new Error('Parámetros de fecha insuficientes.');
-    }
+const moment = require('moment-timezone');
 
-    let inicioDate, finDate;
-    switch (escalaDeTiempo) {
-        case '15min':
-            inicioDate = new Date(ultimaFecha.getTime() - 15 * 60000);
-            finDate = ultimaFecha;
-            break;
-        case '30min':
-            inicioDate = new Date(ultimaFecha.getTime() - 30 * 60000);
-            finDate = ultimaFecha;
-            break;
-        case 'hora':
-            inicioDate = new Date(ultimaFecha.getTime() - 60 * 60000);
-            finDate = ultimaFecha;
-            break;
-        case 'diaria': {
-            const y = ultimaFecha.getFullYear();
-            const m = ultimaFecha.getMonth();
-            const d = ultimaFecha.getDate();
-            inicioDate = new Date(y, m, d, 0, 0, 0);
-            finDate = new Date(y, m, d, 23, 59, 59);
-            break;
-        }
-        default:
-            throw new Error('Escala de tiempo inválida.');
-    }
+function calcularFechas(escalaDeTiempo) {
+  const ahora = moment.tz('America/Guayaquil');
+  let inicio;
 
-    const pad2 = n => String(n).padStart(2, '0');
-    function toLocalISO(d) {
-        return [
-            d.getFullYear(),
-            pad2(d.getMonth() + 1),
-            pad2(d.getDate())
-        ].join('-') + 'T' + [
-            pad2(d.getHours()),
-            pad2(d.getMinutes()),
-            pad2(d.getSeconds())
-        ].join(':');
-    }
+  switch (escalaDeTiempo) {
+    case '15min':
+      inicio = ahora.clone().subtract(15, 'minutes');
+      break;
+    case '30min':
+      inicio = ahora.clone().subtract(30, 'minutes');
+      break;
+    case 'hora':
+      inicio = ahora.clone().subtract(1, 'hour');
+      break;
+    case 'diaria':
+      inicio = ahora.clone().startOf('day');
+      fin    = ahora.clone().endOf('day');
+      return {
+        fechaInicio: inicio.toISOString(),
+        fechaFin:    fin.toISOString()
+      };
+    default:
+      throw new Error('Escala inválida');
+  }
 
-    return {
-        fechaInicio: toLocalISO(inicioDate),  
-        fechaFin: toLocalISO(finDate)   
-    };
+  return {
+    fechaInicio: inicio.toISOString(),
+    fechaFin:    ahora.toISOString()
+  };
 }
 
 
